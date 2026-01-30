@@ -1,6 +1,8 @@
 # Promptit
 
-## TL;DR
+## Ensimmäinen prompti
+
+### TL;DR
 
 - Työkalu: Cursor (Opus 4.5)
 - Tavoite: kokoushuonevaraus-API Express + TypeScript -pohjalle
@@ -9,9 +11,7 @@
 - AI tuotti toimivan toteutuksen kertaheitolla
 - Oma tarkistus: ajoin lokaalisti ja testasin, että määritetyt toiminnot ja validoinnit toimivat
 
-## Promptini 
-
-### Ensimmäinen prompti
+### Prompti
 
 You are my coding assistant. Generate a minimal Express + TypeScript REST API for a meeting room reservation system.
 
@@ -71,7 +71,7 @@ OUTPUT FORMAT
 
 Remember: keep the code readable and small. No database. No authentication. No UI.
 
-Tähän Opus 4.5 Cursorissa vastasi: 
+### AI:n vastaus ensimmäiseen promptiin:
 
 ll create a minimal Express + TypeScript REST API for the meeting room reservation system.
 File Tree
@@ -139,4 +139,137 @@ Overlap check	Linear scan per room	Simple and correct; optimize if scaling neede
 
 
 
+## Toinen prompti 
 
+-Cursor Opus 4.5
+
+How would you write a prompt to yourself, if you want  yourself to 
+1. Review the code for modern best practices
+2. Point out any major issues and problematic solutions
+3. For each of those, explain what is problematic about them
+4. And offer a couple different options on how they could be solved
+
+### Ai:n vastaus
+
+Review my Express + TypeScript reservation API for modern best practices (Express 4/5, TypeScript 5, Node 18+). Focus on:
+
+- API design & HTTP semantics
+- TypeScript usage (types, safety, inference)
+- Error handling patterns
+- Code organization & maintainability
+- Security considerations
+
+For each issue you find:
+1. What: Describe the problem in 1-2 sentences
+2. Why it matters: Explain the real-world consequence (bugs, security, DX, performance)
+3. Options to fix: Provide 2-3 approaches with trade-offs
+
+Prioritize issues by severity (critical > important > minor). Skip nitpicks like formatting or naming preferences. If the code is fine in some area, don't invent problems.
+
+Files to review:
+- src/index.ts
+- src/store.ts  
+- src/types.ts
+
+## Kolmas prompti
+
+Agentti kysyi, haluaisinko että se totetuttaa edellisen vastauksen koodikatselemuksen. Vaihdoin agenttimodeen ja vastaus oli seuraavanlainen
+
+### TL;DR
+- Työkalu: Cursor (Opus 4.5)
+- Tavoite: koodikatselmointi, jossa mukana korjausehdotukset.
+- Opus löysi seuraavat parannuskohteet/bugit:
+1) Ajanvarauksen ajan validointi on liian tiukka (otti huomioon millisekunnitkin)
+2) Request body body tarkistetaan vain typescriptillä ilman ajonaikaista validointia
+3) Puuttuu globaali virheenhallinta, jolloin virhevastaukset voivat olla epäyhtenäisiä ja vuotaa palvelintietoa
+4) Virhefunktio ei käytä virhekoodien tyypitystä, typot virhekoodeissa voivat jäädä huomaamatta
+5) In-memory storea ei voi nollata helposti jolloin testien tekeminen voi olla hankalaa
+6) Agentti huomautti myös että päivämääriä parsitaan moneen kertaan (string → Date useissa kohdissa), ja voisi ehkä siistiä sen
+
+
+### Tekoälyn vastaus
+
+Code Review: Express + TypeScript Reservation API
+Critical Issues
+1. ISO 8601 Validation is Too Strict
+What: isValidISODate() requires the input string to exactly match JavaScript's toISOString() output, which always includes milliseconds (.000Z).
+index.ts
+Lines 28-31
+function isValidISODate(dateStr: string): boolean {  const date = new Date(dateStr);  return !isNaN(date.getTime()) && dateStr === date.toISOString();}
+Why it matters: Valid ISO 8601 dates like "2026-02-01T09:00:00Z" will be rejected. Users will get confusing INVALID_DATE errors for perfectly valid input.
+Options to fix:
+Option	Code	Trade-off
+A) Relaxed check	return !isNaN(new Date(dateStr).getTime())	Accepts more formats (e.g., "Feb 1 2026"), less strict
+B) Regex + parse	Check format with regex, then validate parseable	More code, but precise control
+C) Use a library	date-fns or dayjs with strict parsing	Adds dependency, but battle-tested
+Recommendation: Option A for simplicity, or B if you want to enforce Z-suffix UTC times specifically.
+Important Issues
+2. Type Assertion Instead of Runtime Validation
+What: req.body as CreateReservationBody tells TypeScript to trust the type, but provides no runtime guarantee.
+index.ts
+Lines 40-40
+  const body = req.body as CreateReservationBody;
+Why it matters: If someone sends { "roomId": 123 } (number instead of string), TypeScript won't catch it. Your code will happily store 123 as the roomId, which may cause subtle bugs downstream.
+Options to fix:
+Option	Approach	Trade-off
+A) Manual type guards	Check typeof body.roomId === 'string' explicitly	No deps, verbose
+B) Zod schema	const schema = z.object({ roomId: z.string(), ... })	Clean, auto-generates types, adds ~50KB
+C) class-validator	Decorators on a DTO class	More OOP-style, heavier
+Recommendation: Zod (option B) is the modern standard for TypeScript APIs. It's lightweight and gives you both validation + type inference.
+3. No Global Error Handler
+What: There's no app.use((err, req, res, next) => ...) error middleware.
+Why it matters:
+Malformed JSON in POST body → Express returns raw HTML error
+Uncaught exceptions → Process may crash or leak stack traces
+Inconsistent error format with your ApiError structure
+Options to fix:
+Option	Approach	Trade-off
+A) Simple middleware	Add error handler that wraps all errors in ApiError format	Minimal, covers basics
+B) express-async-errors	Package that auto-catches async errors	One-liner, but adds dependency
+C) Wrap routes in try-catch	Manual error handling per route	Repetitive, error-prone
+Recommendation: Option A—add a simple error middleware at the end of your route definitions:
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {  console.error(err);  res.status(500).json(errorResponse('INTERNAL_ERROR', 'Something went wrong'));});
+4. Weak Type on errorResponse Function
+What: The code parameter is typed as string, not constrained to your ErrorCodes.
+index.ts
+Lines 23-25
+function errorResponse(code: string, message: string): ApiError {  return { error: { code, message } };
+Why it matters: You could accidentally pass a typo like 'INVLAID_INPUT' and TypeScript wouldn't catch it.
+Options to fix:
+Option	Approach	Trade-off
+A) Union type	code: keyof typeof ErrorCodes	Requires passing ErrorCodes.X not the string
+B) Value union	code: typeof ErrorCodes[keyof typeof ErrorCodes]	Allows string literals that match
+C) Extract type	type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes] in types.ts	Cleaner, reusable
+Recommendation: Option C—define the type once in types.ts and use it everywhere.
+Minor Issues
+5. Module-Level Mutable State in Store
+What: const reservations: Map<...> is module-level state with no way to reset it.
+store.ts
+Lines 4-4
+const reservations: Map<string, Reservation> = new Map();
+Why it matters: Makes unit testing harder—state persists between tests unless you add a clearAll() function or use dependency injection.
+Options to fix:
+Option	Approach	Trade-off
+A) Add reset function	Export clearReservations() for tests	Simple, slightly pollutes API
+B) Class-based store	class ReservationStore with instance state	More flexible, more code
+C) Leave as-is	Acceptable for this scope	Fine for a minimal API
+Recommendation: For a minimal API, just add a clearReservations() function if/when you write tests.
+6. Repeated Date Conversions
+What: Dates are stored as strings, but converted to Date objects multiple times (in validation, in hasOverlap, etc.).
+Why it matters: Minor performance overhead and potential for inconsistency if parsing behaves differently in edge cases.
+Options to fix:
+Option	Approach	Trade-off
+A) Store as timestamps	Store start/end as numbers (ms since epoch)	Faster comparisons, less readable in JSON
+B) Parse once, pass Date objects	Validate early, pass Date through the stack	Requires refactoring store API
+C) Leave as-is	ISO strings are human-readable in responses	Acceptable, current approach
+Recommendation: Option C is fine for this scale. Revisit if performance matters.
+Summary
+Severity	Issue	Recommended Fix
+Critical	Strict ISO validation	Relax the check (option A)
+Important	No runtime type validation	Add Zod
+Important	No global error handler	Add error middleware
+Important	Weak errorResponse typing	Extract ErrorCode type
+Minor	Module state untestable	Add clearReservations() when needed
+Minor	Repeated Date parsing	Leave as-is
+The codebase is clean and well-organized for its scope. The critical ISO validation issue will cause real user friction—I'd fix that first. The others are worth addressing as the project grows.
+Want me to implement any of these fixes?

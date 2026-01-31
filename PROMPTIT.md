@@ -1,8 +1,23 @@
 # Promptit
 
-> 📝  Työkaluna olen käyttänyt Cursoria, ja siinä enimmäkseen Opus 4.5 tai Sonnet 4.5 thinking modelia.
+> 🛠️  **Käytetyt työkalut:** Cursor IDE + Claude Opus 4.5 / Sonnet 4.5 (thinking mode)
+> 
+> 🌐   **Promptauskieli:** Englanti (IT-termistö sujuu sillä luontevasti ja tehostaa siten työskentelyä)
 
-## Ensimmäinen prompti
+## Sisällysluettelo
+
+1. [Projektin alustus](#projektin-alustus) — REST API:n luonti Express + TypeScript -pohjalle
+2. [Koodikatselmointipromptien suunnittelu](#koodikatselmointipromptien-suunnittelu) — Miten pyytää tekoälyä katselmoimaan koodia
+3. [Koodikatselmointi](#koodikatselmointi) — Tekoälyn löytämät parannuskohteet ja bugit
+4. [GitHub-issueiden luonti](#github-issueiden-luonti) — Issuejen vienti GitHubiin CLI:llä
+5. [Korjausten toteutus](#korjausten-toteutus) — Issue #1–#4 korjaukset
+6. [Ominaisuuden suunnittelu](#ominaisuuden-suunnittelu) — userId-kentän lisääminen
+7. [Ominaisuuden toteutus](#ominaisuuden-toteutus) — userId-kentän implementointi
+8. [Käyttäjähaun toteutus](#käyttäjähaun-toteutus) — GET /users/:userId/reservations endpoint
+
+---
+
+## Projektin alustus
 
 ### TL;DR
 
@@ -502,7 +517,7 @@ curl -X DELETE http://localhost:3000/reservations/<id>
 
 
 
-## Toinen prompti 
+## Koodikatselmointipromptien suunnittelu
 
 How would you write a prompt to yourself, if you want  yourself to 
 1. Review the code for modern best practices
@@ -532,7 +547,7 @@ Files to review:
 - src/store.ts  
 - src/types.ts
 
-## Kolmas prompti
+## Koodikatselmointi
 
 ### TL;DR
 
@@ -709,7 +724,7 @@ The codebase is clean and well-organized for its scope. The critical ISO validat
 
 Want me to implement any of these fixes?
 
-## Neljäs prompti
+## GitHub-issueiden luonti
 
 - Ensin Latasin Github CLI:n jonka kautta pystyy tekemään githubiin terminalin avulla issueita
 - käskin tekoälyä kirjoittamaan issuet edellisen bugiraportoinnin perusteella
@@ -813,7 +828,7 @@ View all issues: https://github.com/MilicaKrivokapic/meeting-room-api/issues
 
 Which issue would you like me to tackle first?
 
-## Viides prompti
+## Korjausten toteutus
 
 *-korjaukset-*
 
@@ -1214,3 +1229,256 @@ Done! Issue #4 is fixed and committed.
 **Commit:** `3706ed7` with `fixes #4`
 
 All 4 issues complete!
+
+## Ominaisuuden suunnittelu
+
+### Promptini - parannusehdotus
+
+The application does not track WHO made the reservation. This information is not stored. A simple improvement we could do: add a requirement to the POST reservation endpoint that a userId field must be provided for each reservation.
+
+How would you do this? Would this be a big task?
+
+### Tekoälyn vastaus parannusehdotukseen 
+
+This is a small task — about 10-15 minutes of work. Here's what would need to change:
+
+**Changes Required**
+
+**1. src/types.ts — Add userId to types**
+
+```typescript
+// Update Reservation interface
+export interface Reservation {
+  id: string;
+  roomId: string;
+  userId: string;  // ← add this
+  start: string;
+  end: string;
+  createdAt: string;
+}
+
+// Update Zod schema
+export const CreateReservationSchema = z.object({
+  roomId: z.string().min(1, 'roomId is required'),
+  userId: z.string().min(1, 'userId is required'),  // ← add this
+  start: z.string().min(1, 'start is required'),
+  end: z.string().min(1, 'end is required'),
+});
+```
+
+**2. src/index.ts — Include userId when creating reservation**
+
+```typescript
+// In POST /reservations handler
+const { roomId, userId, start, end } = result.data;  // ← add userId
+
+// When creating the reservation object
+const reservation: Reservation = {
+  id: crypto.randomUUID(),
+  roomId,
+  userId,  // ← add this
+  start,
+  end,
+  createdAt: new Date().toISOString(),
+};
+```
+
+That's it!
+
+| File | Changes |
+| ---- | ------- |
+| types.ts | 2 lines (interface + schema) |
+| index.ts | 2 lines (destructure + object) |
+
+Total: ~4 lines of code
+
+The Zod schema automatically handles validation — if userId is missing or empty, it returns a 400 error with the message "userId is required".
+
+Want me to implement this? Just switch to Agent mode.
+
+## Ominaisuuden toteutus
+
+### Tekoälyn tuoma uusi ominaisuus
+
+*(vaihdoin agenttimodeen ja sanoin "yeah, let's do this!")*
+
+**types.ts** +1
+
+```typescript
+roomId: string;  start: string; // ISO 8601
+```
+
+↓
+
+```typescript
+roomId: string;  userId: string;  start: string; // ISO 8601
+```
+
+**types.ts** +1
+
+```typescript
+roomId: z.string().min(1, 'roomId is required'),  start: z.string().min(1, 'start is required'),
+```
+
+↓
+
+```typescript
+roomId: z.string().min(1, 'roomId is required'),  userId: z.string().min(1, 'userId is required'),  start: z.string().min(1, 'start is required'),
+```
+
+**index.ts** +1 -1
+
+```typescript
+const { roomId, start, end } = result.data;
+```
+
+↓
+
+```typescript
+const { roomId, userId, start, end } = result.data;
+```
+
+**index.ts** +1
+
+```typescript
+roomId,    start,
+```
+
+↓
+
+```typescript
+roomId,    userId,    start,
+```
+
+```bash
+git diff src/
+```
+
+```diff
+diff --git a/src/index.ts b/src/index.ts
+index b7ec411..1d84336 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -51,7 +51,7 @@ app.post('/reservations', (req: Request, res: Response) => {
+     return;
+   }
+ 
+-  const { roomId, start, end } = result.data;
++  const { roomId, userId, start, end } = result.data;
+ 
+   // Validate date formats
+   if (!isValidISODate(start) || !isValidISODate(end)) {
+@@ -105,6 +105,7 @@ app.post('/reservations', (req: Request, res: Response) => {
+   const reservation: Reservation = {
+     id: crypto.randomUUID(),
+     roomId,
++    userId,
+     start,
+     end,
+     createdAt: new Date().toISOString(),
+diff --git a/src/types.ts b/src/types.ts
+index eb868d3..72c1101 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -3,6 +3,7 @@ import { z } from 'zod';
+ export interface Reservation {
+   id: string;
+   roomId: string;
++  userId: string;
+   start: string; // ISO 8601
+   end: string;   // ISO 8601
+   createdAt: string; // ISO 8601
+@@ -11,6 +12,7 @@ export interface Reservation {
+ // Zod schema for runtime validation
+ export const CreateReservationSchema = z.object({
+   roomId: z.string().min(1, 'roomId is required'),
++  userId: z.string().min(1, 'userId is required'),
+   start: z.string().min(1, 'start is required'),
+   end: z.string().min(1, 'end is required'),
+```
+
+## Käyttäjähaun toteutus
+
+### Prompti
+
+Okay, can we now add the user search as you planned?
+
+### Tekoälyn vastaus
+
+Lisätään käyttäjän varausten haku. Tämä mahdollistaa käyttäjän kaikkien varausten hakemisen userId:n perusteella.
+
+```bash
+git diff src/
+```
+
+```diff
+diff --git a/src/index.ts b/src/index.ts
+index 1d84336..6534b0a 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -12,6 +12,7 @@ import {
+   deleteReservation,
+   getReservationById,
+   getReservationsByRoomId,
++  getReservationsByUserId,
+   hasOverlap,
+ } from './store.js';
+ 
+@@ -138,6 +139,13 @@ app.get('/rooms/:roomId/reservations', (req: Request, res: Response) => {
+   res.status(200).json(reservations);
+ });
+ 
++// GET /users/:userId/reservations - List reservations for a user
++app.get('/users/:userId/reservations', (req: Request, res: Response) => {
++  const { userId } = req.params;
++  const reservations = getReservationsByUserId(userId);
++  res.status(200).json(reservations);
++});
++
+ // Global error handler - catches unhandled errors and returns consistent ApiError format
+ app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+   console.error('Unhandled error:', err.message);
+diff --git a/src/store.ts b/src/store.ts
+index 587d25c..59108b4 100644
+--- a/src/store.ts
++++ b/src/store.ts
+@@ -17,6 +17,12 @@ export function getReservationsByRoomId(roomId: string): Reservation[] {
+     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+ }
+ 
++export function getReservationsByUserId(userId: string): Reservation[] {
++  return getAllReservations()
++    .filter((r) => r.userId === userId)
++    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
++}
++
+ export function addReservation(reservation: Reservation): void {
+   reservations.set(reservation.id, reservation);
+ }
+```
+
+```bash
+git add src/store.ts src/index.ts && git commit -m "Lisätty käyttäjän varausten haku
+
+fixes #6"
+```
+
+```
+[main df09853] Lisätty käyttäjän varausten haku
+ 2 files changed, 14 insertions(+)
+```
+
+**Yhteenveto:**
+
+| Tiedosto | Muutos |
+| -------- | ------ |
+| `src/store.ts` | Lisätty `getReservationsByUserId` funktio |
+| `src/index.ts` | Lisätty `GET /users/:userId/reservations` endpoint |
+
+**Käyttö:**
+
+```bash
+curl http://localhost:3000/users/user-123/reservations
+```
+
+**Commit:** `df09853` with `fixes #6`

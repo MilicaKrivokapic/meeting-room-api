@@ -1049,3 +1049,88 @@ Done! Issue #2 is fixed and committed.
 - Better error messages from Zod
 
 **Commit:** `073a389` with `fixes #2`
+
+## Seitsemäs prompti
+
+### Promptini:
+
+Okay, lets's have a look at the next one (issue number 3: feat: add global error handling middleware)
+
+### AI:n vastaus
+
+I'll add the global error handler. First, let me update the import and add the error middleware.
+
+**index.ts** import change
+
+```typescript
+import express, { Request, Response } from 'express';
+```
+
+↓
+
+```typescript
+import express, { Request, Response, NextFunction } from 'express';
+```
+
+**index.ts** add error handler before app.listen()
+
+```typescript
+// Global error handler - catches unhandled errors and returns consistent ApiError format
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json(
+    errorResponse(ErrorCodes.INTERNAL_ERROR, 'An unexpected error occurred')
+  );
+});
+
+app.listen(PORT, () => {
+  console.log(`Server running on http://localhost:${PORT}`);
+});
+```
+
+**types.ts** add INTERNAL_ERROR to ErrorCodes
+
+```typescript
+// Error codes
+export const ErrorCodes = {
+  INVALID_INPUT: 'INVALID_INPUT',
+  INVALID_DATE: 'INVALID_DATE',
+  START_NOT_BEFORE_END: 'START_NOT_BEFORE_END',
+  START_IN_PAST: 'START_IN_PAST',
+  OVERLAP_CONFLICT: 'OVERLAP_CONFLICT',
+  NOT_FOUND: 'NOT_FOUND',
+  INTERNAL_ERROR: 'INTERNAL_ERROR',
+} as const;
+```
+
+```bash
+git add . && git commit -m "feat: add global error handling middleware
+
+- Added error handler that catches unhandled errors
+- Returns consistent ApiError format with INTERNAL_ERROR code
+- Logs errors to console for debugging
+- Added INTERNAL_ERROR to ErrorCodes
+
+fixes #3"
+```
+
+```
+[main 0be1ac7] feat: add global error handling middleware
+ 3 files changed, 181 insertions(+), 1 deletion(-)
+```
+
+Done! Issue #3 is fixed and committed.
+
+**Summary of changes:**
+
+| File | Change |
+| ---- | ------ |
+| `src/index.ts` | Added `NextFunction` import, added error handler middleware |
+| `src/types.ts` | Added `INTERNAL_ERROR` to ErrorCodes |
+
+**Benefits:**
+- Unhandled errors now return consistent `ApiError` format
+- No more raw HTML error pages or stack trace leaks
+- Errors logged for debugging
+
+**Commit:** `0be1ac7` with `fixes #3`

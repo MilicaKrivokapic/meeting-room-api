@@ -20,7 +20,7 @@ export type CreateReservationBody = z.infer<typeof CreateReservationSchema>;
 
 export interface ApiError {
   error: {
-    code: string;
+    code: ErrorCode;
     message: string;
   };
 }
@@ -35,3 +35,6 @@ export const ErrorCodes = {
   NOT_FOUND: 'NOT_FOUND',
   INTERNAL_ERROR: 'INTERNAL_ERROR',
 } as const;
+
+// Type-safe error code type (extracted from ErrorCodes values)
+export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];

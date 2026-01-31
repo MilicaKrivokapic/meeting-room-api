@@ -4,6 +4,7 @@ import {
   Reservation,
   CreateReservationSchema,
   ApiError,
+  ErrorCode,
   ErrorCodes,
 } from './types.js';
 import {
@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json());
 
 // Helper to create error response
-function errorResponse(code: string, message: string): ApiError {
+function errorResponse(code: ErrorCode, message: string): ApiError {
   return { error: { code, message } };
 }
 

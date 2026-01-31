@@ -1,4 +1,4 @@
-import express, { Request, Response } from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import {
   Reservation,
@@ -134,6 +134,14 @@ app.get('/rooms/:roomId/reservations', (req: Request, res: Response) => {
   const { roomId } = req.params;
   const reservations = getReservationsByRoomId(roomId);
   res.status(200).json(reservations);
+});
+
+// Global error handler - catches unhandled errors and returns consistent ApiError format
+app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  console.error('Unhandled error:', err.message);
+  res.status(500).json(
+    errorResponse(ErrorCodes.INTERNAL_ERROR, 'An unexpected error occurred')
+  );
 });
 
 app.listen(PORT, () => {

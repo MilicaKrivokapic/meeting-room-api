@@ -878,3 +878,174 @@ index 94a8d80..d2c1195 100644
 ```
 
 Changes look good. Now I'll commit with a message that closes issue #1.
+
+```bash
+git add src/index.ts && git commit -m "fix: relax ISO 8601 date validation to accept standard formats
+
+Removed strict string equality check that required exact milliseconds format.
+Now accepts valid ISO dates like \"2026-02-01T09:00:00Z\" without milliseconds.
+
+fixes #1"
+```
+
+```
+[main 08a24ab] fix: relax ISO 8601 date validation to accept standard formats
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+```
+
+Done! Issue #1 is fixed and committed.
+
+**Summary:**
+- Removed the strict `dateStr === date.toISOString()` check
+- Updated error message to not suggest milliseconds are required
+- Commit: `08a24ab` with message referencing `fixes #1`
+
+## Kuudes prompti
+
+### Promptini:
+
+Let's tackle the next issue, number 2 (feat: add Zod schema for runtime validation)
+
+### AI:n vastaus
+
+First, let me install Zod.
+
+```bash
+npm install zod
+```
+
+```
+added 1 package, and audited 90 packages in 861ms
+
+18 packages are looking for funding
+  run `npm fund` for details
+
+found 0 vulnerabilities
+```
+
+Now I'll add the Zod schema to `types.ts`.
+
+**types.ts** +9 -5
+
+```typescript
+export interface CreateReservationBody {
+  roomId?: string;
+  start?: string;
+  end?: string;
+}
+```
+
+↓
+
+```typescript
+import { z } from 'zod';
+
+// Zod schema for runtime validation
+export const CreateReservationSchema = z.object({
+  roomId: z.string().min(1, 'roomId is required'),
+  start: z.string().min(1, 'start is required'),
+  end: z.string().min(1, 'end is required'),
+});
+
+// Infer type from schema
+export type CreateReservationBody = z.infer<typeof CreateReservationSchema>;
+```
+
+Now I'll update `index.ts` to use the Zod schema for validation.
+
+**index.ts** import change
+
+```typescript
+import {
+  Reservation,
+  CreateReservationBody,
+  ApiError,
+  ErrorCodes,
+} from './types.js';
+```
+
+↓
+
+```typescript
+import {
+  Reservation,
+  CreateReservationSchema,
+  ApiError,
+  ErrorCodes,
+} from './types.js';
+```
+
+**index.ts** validation change
+
+```typescript
+// POST /reservations - Create a reservation
+app.post('/reservations', (req: Request, res: Response) => {
+  const body = req.body as CreateReservationBody;
+
+  // Validate required fields
+  if (!body.roomId || !body.start || !body.end) {
+    res.status(400).json(
+      errorResponse(
+        ErrorCodes.INVALID_INPUT,
+        'Missing required fields: roomId, start, and end are required'
+      )
+    );
+    return;
+  }
+
+  const { roomId, start, end } = body;
+```
+
+↓
+
+```typescript
+// POST /reservations - Create a reservation
+app.post('/reservations', (req: Request, res: Response) => {
+  // Validate request body with Zod
+  const result = CreateReservationSchema.safeParse(req.body);
+  if (!result.success) {
+    const firstError = result.error.issues[0];
+    res.status(400).json(
+      errorResponse(
+        ErrorCodes.INVALID_INPUT,
+        firstError.message
+      )
+    );
+    return;
+  }
+
+  const { roomId, start, end } = result.data;
+```
+
+```bash
+git add . && git commit -m "feat: add Zod schema for runtime request validation
+
+- Added Zod dependency
+- Created CreateReservationSchema with required string fields
+- Replaced type assertion with safeParse validation
+- Type is now inferred from schema (single source of truth)
+
+fixes #2"
+```
+
+```
+[main 073a389] feat: add Zod schema for runtime request validation
+ 5 files changed, 99 insertions(+), 15 deletions(-)
+```
+
+Done! Issue #2 is fixed and committed.
+
+**Summary of changes:**
+
+| File | Change |
+| ---- | ------ |
+| `package.json` | Added `zod` dependency |
+| `src/types.ts` | Added `CreateReservationSchema` with Zod, type now inferred from schema |
+| `src/index.ts` | Replaced `req.body as ...` with `safeParse()` validation |
+
+**Benefits:**
+- Runtime type checking (catches `roomId: 123` instead of string)
+- Single source of truth (type inferred from schema)
+- Better error messages from Zod
+
+**Commit:** `073a389` with `fixes #2`

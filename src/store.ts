@@ -17,6 +17,12 @@ export function getReservationsByRoomId(roomId: string): Reservation[] {
     .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
+export function getReservationsByUserId(userId: string): Reservation[] {
+  return getAllReservations()
+    .filter((r) => r.userId === userId)
+    .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
+}
+
 export function addReservation(reservation: Reservation): void {
   reservations.set(reservation.id, reservation);
 }

@@ -12,6 +12,7 @@ import {
   deleteReservation,
   getReservationById,
   getReservationsByRoomId,
+  getReservationsByUserId,
   hasOverlap,
 } from './store.js';
 
@@ -135,6 +136,13 @@ app.delete('/reservations/:id', (req: Request, res: Response) => {
 app.get('/rooms/:roomId/reservations', (req: Request, res: Response) => {
   const { roomId } = req.params;
   const reservations = getReservationsByRoomId(roomId);
+  res.status(200).json(reservations);
+});
+
+// GET /users/:userId/reservations - List reservations for a user
+app.get('/users/:userId/reservations', (req: Request, res: Response) => {
+  const { userId } = req.params;
+  const reservations = getReservationsByUserId(userId);
   res.status(200).json(reservations);
 });
 

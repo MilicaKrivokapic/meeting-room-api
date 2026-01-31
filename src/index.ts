@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
 import crypto from 'crypto';
 import {
   Reservation,
-  CreateReservationBody,
+  CreateReservationSchema,
   ApiError,
   ErrorCodes,
 } from './types.js';
@@ -37,20 +37,20 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // POST /reservations - Create a reservation
 app.post('/reservations', (req: Request, res: Response) => {
-  const body = req.body as CreateReservationBody;
-
-  // Validate required fields
-  if (!body.roomId || !body.start || !body.end) {
+  // Validate request body with Zod
+  const result = CreateReservationSchema.safeParse(req.body);
+  if (!result.success) {
+    const firstError = result.error.issues[0];
     res.status(400).json(
       errorResponse(
         ErrorCodes.INVALID_INPUT,
-        'Missing required fields: roomId, start, and end are required'
+        firstError.message
       )
     );
     return;
   }
 
-  const { roomId, start, end } = body;
+  const { roomId, start, end } = result.data;
 
   // Validate date formats
   if (!isValidISODate(start) || !isValidISODate(end)) {

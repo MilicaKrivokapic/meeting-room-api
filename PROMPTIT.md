@@ -811,3 +811,70 @@ View all issues: https://github.com/MilicaKrivokapic/meeting-room-api/issues
 - Each commit will reference the issue (e.g., fixes #1) so it auto-closes when merged
 
 Which issue would you like me to tackle first?
+
+## Viides prompti
+
+*-korjaukset-*
+
+### Promptini: 
+
+Could you tackle now the first issue fix (Number one: fix: relax ISO 8601 date validation)? 
+
+### AI:n vastaus
+
+**index.ts** +1 -1
+
+```typescript
+const date = new Date(dateStr);  return !isNaN(date.getTime()) && dateStr === date.toISOString();}
+```
+
+↓
+
+```typescript
+return !isNaN(date.getTime()) && dateStr === date.toISOString();  const date = new Date(dateStr);  return !isNaN(date.getTime());}
+```
+
+**index.ts** +1 -1
+
+```typescript
+ErrorCodes.INVALID_DATE,        'Invalid date format. Use ISO 8601 (e.g., "2026-02-01T12:00:00.000Z")'      )
+```
+
+↓
+
+```typescript
+'Invalid date format. Use ISO 8601 (e.g., "2026-02-01T12:00:00.000Z")'        ErrorCodes.INVALID_DATE,        'Invalid date format. Use ISO 8601 (e.g., "2026-02-01T12:00:00Z")'      )
+```
+
+Let me verify the changes and check for any linter errors.
+
+```bash
+git diff src/index.ts
+```
+
+```diff
+diff --git a/src/index.ts b/src/index.ts
+index 94a8d80..d2c1195 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -27,7 +27,7 @@ function errorResponse(code: string, message: string): ApiError {
+ // Helper to validate ISO 8601 date string
+ function isValidISODate(dateStr: string): boolean {
+   const date = new Date(dateStr);
+-  return !isNaN(date.getTime()) && dateStr === date.toISOString();
++  return !isNaN(date.getTime());
+ }
+ 
+ // Health check
+@@ -57,7 +57,7 @@ app.post('/reservations', (req: Request, res: Response) => {
+     res.status(400).json(
+       errorResponse(
+         ErrorCodes.INVALID_DATE,
+-        'Invalid date format. Use ISO 8601 (e.g., "2026-02-01T12:00:00.000Z")'
++        'Invalid date format. Use ISO 8601 (e.g., "2026-02-01T12:00:00Z")'
+       )
+     );
+     return;
+```
+
+Changes look good. Now I'll commit with a message that closes issue #1.

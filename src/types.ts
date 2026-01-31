@@ -1,3 +1,5 @@
+import { z } from 'zod';
+
 export interface Reservation {
   id: string;
   roomId: string;
@@ -6,11 +8,15 @@ export interface Reservation {
   createdAt: string; // ISO 8601
 }
 
-export interface CreateReservationBody {
-  roomId?: string;
-  start?: string;
-  end?: string;
-}
+// Zod schema for runtime validation
+export const CreateReservationSchema = z.object({
+  roomId: z.string().min(1, 'roomId is required'),
+  start: z.string().min(1, 'start is required'),
+  end: z.string().min(1, 'end is required'),
+});
+
+// Infer type from schema
+export type CreateReservationBody = z.infer<typeof CreateReservationSchema>;
 
 export interface ApiError {
   error: {

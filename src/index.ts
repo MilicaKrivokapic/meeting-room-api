@@ -51,7 +51,7 @@ app.post('/reservations', (req: Request, res: Response) => {
     return;
   }
 
-  const { roomId, start, end } = result.data;
+  const { roomId, userId, start, end } = result.data;
 
   // Validate date formats
   if (!isValidISODate(start) || !isValidISODate(end)) {
@@ -105,6 +105,7 @@ app.post('/reservations', (req: Request, res: Response) => {
   const reservation: Reservation = {
     id: crypto.randomUUID(),
     roomId,
+    userId,
     start,
     end,
     createdAt: new Date().toISOString(),

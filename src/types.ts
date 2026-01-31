@@ -3,6 +3,7 @@ import { z } from 'zod';
 export interface Reservation {
   id: string;
   roomId: string;
+  userId: string;
   start: string; // ISO 8601
   end: string;   // ISO 8601
   createdAt: string; // ISO 8601
@@ -11,6 +12,7 @@ export interface Reservation {
 // Zod schema for runtime validation
 export const CreateReservationSchema = z.object({
   roomId: z.string().min(1, 'roomId is required'),
+  userId: z.string().min(1, 'userId is required'),
   start: z.string().min(1, 'start is required'),
   end: z.string().min(1, 'end is required'),
 });

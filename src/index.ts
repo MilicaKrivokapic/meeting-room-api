@@ -27,7 +27,7 @@ function errorResponse(code: string, message: string): ApiError {
 // Helper to validate ISO 8601 date string
 function isValidISODate(dateStr: string): boolean {
   const date = new Date(dateStr);
-  return !isNaN(date.getTime()) && dateStr === date.toISOString();
+  return !isNaN(date.getTime());
 }
 
 // Health check
@@ -57,7 +57,7 @@ app.post('/reservations', (req: Request, res: Response) => {
     res.status(400).json(
       errorResponse(
         ErrorCodes.INVALID_DATE,
-        'Invalid date format. Use ISO 8601 (e.g., "2026-02-01T12:00:00.000Z")'
+        'Invalid date format. Use ISO 8601 (e.g., "2026-02-01T12:00:00Z")'
       )
     );
     return;

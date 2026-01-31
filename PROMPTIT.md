@@ -1,10 +1,11 @@
 # Promptit
 
+> 📝  Työkaluna olen käyttänyt Cursoria, ja siinä enimmäkseen Opus 4.5 tai Sonnet 4.5 thinking modelia.
+
 ## Ensimmäinen prompti
 
 ### TL;DR
 
-- Työkalu: Cursor (Opus 4.5)
 - Tavoite: kokoushuonevaraus-API Express + TypeScript -pohjalle
 - Pyysin AI:ta luomaan endpointit (POST /reservations, DELETE /reservations/:id, GET /rooms/:roomId/reservations),
   in-memory-tallennuksen, validoinnit (tapaaminen ei voi päättyä ennen alkamistaan, tapaamista ei voi varata menneisyyteen, kaksi tapaamista ei voi mennä päällekkäin)
@@ -71,7 +72,7 @@ OUTPUT FORMAT
 
 Remember: keep the code readable and small. No database. No authentication. No UI.
 
-### AI:n vastaus ensimmäiseen promptiin:
+### Tekoälyn vastaus ensimmäiseen promptiin:
 
 I'll create a minimal Express + TypeScript REST API for the meeting room reservation system.
 
@@ -509,7 +510,7 @@ How would you write a prompt to yourself, if you want  yourself to
 3. For each of those, explain what is problematic about them
 4. And offer a couple different options on how they could be solved
 
-### Ai:n vastaus
+### Tekoälyn vastaus
 
 Review my Express + TypeScript reservation API for modern best practices (Express 4/5, TypeScript 5, Node 18+). Focus on:
 
@@ -534,7 +535,7 @@ Files to review:
 ## Kolmas prompti
 
 ### TL;DR
-- Työkalu: Cursor (Opus 4.5)
+
 - Tavoite: koodikatselmointi, jossa mukana korjausehdotukset.
 - Opus löysi seuraavat parannuskohteet/bugit:
 1) Ajanvarauksen ajan validointi on liian tiukka (otti huomioon millisekunnitkin)
@@ -816,11 +817,11 @@ Which issue would you like me to tackle first?
 
 *-korjaukset-*
 
-### Promptini: 
+### Promptini - issue numero 1 	fix: relax ISO 8601 validation
 
 Could you tackle now the first issue fix (Number one: fix: relax ISO 8601 date validation)? 
 
-### AI:n vastaus
+### Tekoälyb vastaus - issue numero 1
 
 **index.ts** +1 -1
 
@@ -900,13 +901,12 @@ Done! Issue #1 is fixed and committed.
 - Updated error message to not suggest milliseconds are required
 - Commit: `08a24ab` with message referencing `fixes #1`
 
-## Kuudes prompti
 
-### Promptini:
+### Promptini - issue numero 2 feat: add Zod runtime validation
 
 Let's tackle the next issue, number 2 (feat: add Zod schema for runtime validation)
 
-### AI:n vastaus
+### Tekoälyn vastaus - issue numero 2
 
 First, let me install Zod.
 
@@ -923,99 +923,87 @@ added 1 package, and audited 90 packages in 861ms
 found 0 vulnerabilities
 ```
 
-Now I'll add the Zod schema to `types.ts`.
+Now I'll add the Zod schema to `types.ts` and update `index.ts`.
 
-**types.ts** +9 -5
-
-```typescript
-export interface CreateReservationBody {
-  roomId?: string;
-  start?: string;
-  end?: string;
-}
+```bash
+git diff src/
 ```
 
-↓
-
-```typescript
-import { z } from 'zod';
-
-// Zod schema for runtime validation
-export const CreateReservationSchema = z.object({
-  roomId: z.string().min(1, 'roomId is required'),
-  start: z.string().min(1, 'start is required'),
-  end: z.string().min(1, 'end is required'),
-});
-
-// Infer type from schema
-export type CreateReservationBody = z.infer<typeof CreateReservationSchema>;
+```diff
+diff --git a/src/index.ts b/src/index.ts
+index d2c1195..191d24e 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -2,7 +2,7 @@ import express, { Request, Response } from 'express';
+ import crypto from 'crypto';
+ import {
+   Reservation,
+-  CreateReservationBody,
++  CreateReservationSchema,
+   ApiError,
+   ErrorCodes,
+ } from './types.js';
+@@ -37,20 +37,20 @@ app.get('/health', (_req: Request, res: Response) => {
+ 
+ // POST /reservations - Create a reservation
+ app.post('/reservations', (req: Request, res: Response) => {
+-  const body = req.body as CreateReservationBody;
+-
+-  // Validate required fields
+-  if (!body.roomId || !body.start || !body.end) {
++  // Validate request body with Zod
++  const result = CreateReservationSchema.safeParse(req.body);
++  if (!result.success) {
++    const firstError = result.error.issues[0];
+     res.status(400).json(
+       errorResponse(
+         ErrorCodes.INVALID_INPUT,
+-        'Missing required fields: roomId, start, and end are required'
++        firstError.message
+       )
+     );
+     return;
+   }
+ 
+-  const { roomId, start, end } = body;
++  const { roomId, start, end } = result.data;
+ 
+   // Validate date formats
+   if (!isValidISODate(start) || !isValidISODate(end)) {
+diff --git a/src/types.ts b/src/types.ts
+index bebe64f..e8aaa71 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -1,3 +1,5 @@
++import { z } from 'zod';
++
+ export interface Reservation {
+   id: string;
+   roomId: string;
+@@ -6,11 +8,15 @@ export interface Reservation {
+   createdAt: string; // ISO 8601
+ }
+ 
+-export interface CreateReservationBody {
+-  roomId?: string;
+-  start?: string;
+-  end?: string;
+-}
++// Zod schema for runtime validation
++export const CreateReservationSchema = z.object({
++  roomId: z.string().min(1, 'roomId is required'),
++  start: z.string().min(1, 'start is required'),
++  end: z.string().min(1, 'end is required'),
++});
++
++// Infer type from schema
++export type CreateReservationBody = z.infer<typeof CreateReservationSchema>;
+ 
+ export interface ApiError {
+   error: {
 ```
 
-Now I'll update `index.ts` to use the Zod schema for validation.
-
-**index.ts** import change
-
-```typescript
-import {
-  Reservation,
-  CreateReservationBody,
-  ApiError,
-  ErrorCodes,
-} from './types.js';
-```
-
-↓
-
-```typescript
-import {
-  Reservation,
-  CreateReservationSchema,
-  ApiError,
-  ErrorCodes,
-} from './types.js';
-```
-
-**index.ts** validation change
-
-```typescript
-// POST /reservations - Create a reservation
-app.post('/reservations', (req: Request, res: Response) => {
-  const body = req.body as CreateReservationBody;
-
-  // Validate required fields
-  if (!body.roomId || !body.start || !body.end) {
-    res.status(400).json(
-      errorResponse(
-        ErrorCodes.INVALID_INPUT,
-        'Missing required fields: roomId, start, and end are required'
-      )
-    );
-    return;
-  }
-
-  const { roomId, start, end } = body;
-```
-
-↓
-
-```typescript
-// POST /reservations - Create a reservation
-app.post('/reservations', (req: Request, res: Response) => {
-  // Validate request body with Zod
-  const result = CreateReservationSchema.safeParse(req.body);
-  if (!result.success) {
-    const firstError = result.error.issues[0];
-    res.status(400).json(
-      errorResponse(
-        ErrorCodes.INVALID_INPUT,
-        firstError.message
-      )
-    );
-    return;
-  }
-
-  const { roomId, start, end } = result.data;
-```
+Changes look good. Now I'll commit with a message that closes issue #2.
 
 ```bash
 git add . && git commit -m "feat: add Zod schema for runtime request validation
@@ -1050,58 +1038,57 @@ Done! Issue #2 is fixed and committed.
 
 **Commit:** `073a389` with `fixes #2`
 
-## Seitsemäs prompti
-
-### Promptini:
+### Promptini - issue numero 3 feat: add global error handler
 
 Okay, lets's have a look at the next one (issue number 3: feat: add global error handling middleware)
 
-### AI:n vastaus
+### Tekoälyn vastaus - issue numero 3
 
 I'll add the global error handler. First, let me update the import and add the error middleware.
 
-**index.ts** import change
-
-```typescript
-import express, { Request, Response } from 'express';
+```bash
+git diff src/
 ```
 
-↓
-
-```typescript
-import express, { Request, Response, NextFunction } from 'express';
+```diff
+diff --git a/src/index.ts b/src/index.ts
+index d88bb22..fa186d4 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -1,4 +1,4 @@
+-import express, { Request, Response } from 'express';
++import express, { Request, Response, NextFunction } from 'express';
+ import crypto from 'crypto';
+ import {
+   Reservation,
+@@ -136,6 +136,14 @@ app.get('/rooms/:roomId/reservations', (req: Request, res: Response) => {
+   res.status(200).json(reservations);
+ });
+ 
++// Global error handler - catches unhandled errors and returns consistent ApiError format
++app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
++  console.error('Unhandled error:', err.message);
++  res.status(500).json(
++    errorResponse(ErrorCodes.INTERNAL_ERROR, 'An unexpected error occurred')
++  );
++});
++
+ app.listen(PORT, () => {
+   console.log(`Server running on http://localhost:${PORT}`);
+ });
+diff --git a/src/types.ts b/src/types.ts
+index e8aaa71..81b85fa 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -33,4 +33,5 @@ export const ErrorCodes = {
+   START_IN_PAST: 'START_IN_PAST',
+   OVERLAP_CONFLICT: 'OVERLAP_CONFLICT',
+   NOT_FOUND: 'NOT_FOUND',
++  INTERNAL_ERROR: 'INTERNAL_ERROR',
+ } as const;
 ```
 
-**index.ts** add error handler before app.listen()
-
-```typescript
-// Global error handler - catches unhandled errors and returns consistent ApiError format
-app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
-  console.error('Unhandled error:', err.message);
-  res.status(500).json(
-    errorResponse(ErrorCodes.INTERNAL_ERROR, 'An unexpected error occurred')
-  );
-});
-
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-});
-```
-
-**types.ts** add INTERNAL_ERROR to ErrorCodes
-
-```typescript
-// Error codes
-export const ErrorCodes = {
-  INVALID_INPUT: 'INVALID_INPUT',
-  INVALID_DATE: 'INVALID_DATE',
-  START_NOT_BEFORE_END: 'START_NOT_BEFORE_END',
-  START_IN_PAST: 'START_IN_PAST',
-  OVERLAP_CONFLICT: 'OVERLAP_CONFLICT',
-  NOT_FOUND: 'NOT_FOUND',
-  INTERNAL_ERROR: 'INTERNAL_ERROR',
-} as const;
-```
+Changes look good. Now I'll commit with a message that closes issue #3.
 
 ```bash
 git add . && git commit -m "feat: add global error handling middleware
@@ -1134,3 +1121,96 @@ Done! Issue #3 is fixed and committed.
 - Errors logged for debugging
 
 **Commit:** `0be1ac7` with `fixes #3`
+
+
+### Promptini - issue numero 4 feat: add global error handler
+
+GJ! Now, we have the final task which is number 4: refactor: enforce ErrorCode type
+
+### Tekoälyn vastaus - issue numero 4
+
+I'll add the `ErrorCode` type to `types.ts` and update the function signature.
+
+```bash
+git diff src/
+```
+
+```diff
+diff --git a/src/index.ts b/src/index.ts
+index fa186d4..b7ec411 100644
+--- a/src/index.ts
++++ b/src/index.ts
+@@ -4,6 +4,7 @@ import {
+   Reservation,
+   CreateReservationSchema,
+   ApiError,
++  ErrorCode,
+   ErrorCodes,
+ } from './types.js';
+ import {
+@@ -20,7 +21,7 @@ const PORT = process.env.PORT || 3000;
+ app.use(express.json());
+ 
+ // Helper to create error response
+-function errorResponse(code: string, message: string): ApiError {
++function errorResponse(code: ErrorCode, message: string): ApiError {
+   return { error: { code, message } };
+ }
+ 
+diff --git a/src/types.ts b/src/types.ts
+index 81b85fa..eb868d3 100644
+--- a/src/types.ts
++++ b/src/types.ts
+@@ -20,7 +20,7 @@ export type CreateReservationBody = z.infer<typeof CreateReservationSchema>;
+ 
+ export interface ApiError {
+   error: {
+-    code: string;
++    code: ErrorCode;
+     message: string;
+   };
+ }
+@@ -35,3 +35,6 @@ export const ErrorCodes = {
+   NOT_FOUND: 'NOT_FOUND',
+   INTERNAL_ERROR: 'INTERNAL_ERROR',
+ } as const;
++
++// Type-safe error code type (extracted from ErrorCodes values)
++export type ErrorCode = typeof ErrorCodes[keyof typeof ErrorCodes];
+```
+
+Changes look good. Now I'll commit with a message that closes issue #4.
+
+```bash
+git add . && git commit -m "refactor: enforce ErrorCode type for type-safe error responses
+
+- Added ErrorCode type extracted from ErrorCodes values
+- Updated ApiError interface to use ErrorCode instead of string
+- Updated errorResponse function to require ErrorCode parameter
+- TypeScript now catches typos in error codes at compile time
+
+fixes #4"
+```
+
+```
+[main 3706ed7] refactor: enforce ErrorCode type for type-safe error responses
+ 3 files changed, 91 insertions(+), 2 deletions(-)
+```
+
+Done! Issue #4 is fixed and committed.
+
+**Summary of changes:**
+
+| File | Change |
+| ---- | ------ |
+| `src/types.ts` | Added `ErrorCode` type, updated `ApiError` interface |
+| `src/index.ts` | Imported `ErrorCode`, updated `errorResponse` function signature |
+
+**Benefits:**
+- TypeScript catches typos like `'INVLAID_INPUT'` at compile time
+- Single source of truth for error codes
+- Better IDE autocomplete for error codes
+
+**Commit:** `3706ed7` with `fixes #4`
+
+All 4 issues complete!

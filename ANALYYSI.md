@@ -7,7 +7,7 @@ Tekoäly tuotti toimivan Express + TypeScript -pohjaisen REST API:n yhdellä pro
 
 Erityisen hyödyllinen oli tekoälyn koodikatselmointi: se tunnisti todelliset ongelmat kuten liian tiukan päivämäärävalidoinnin ja puuttuvan ajonaikaisen tyypintarkistuksen. Korjausehdotukset sisälsivät useita vaihtoehtoja perusteluineen, se oli innostavaa ja inspiroivaa. Varmistin vielä netistä tietoa etsimällä että teen varmasti oikeita asioita ja korjauksissa on järkeä. 
 
-Myös GitHub-workflow sujui hyvin, tekoäly loi issuet CLI:n kautta yllättävän täpäkästi.
+GitHub-projektin hallinta sujui yllättävän täpäkästi.  Issuet luotiin CLI:llä, commit-viestit viittasivat issueisiin (fixes #1), ja Kanban-taulun automaatiot siirsivät valmiit issuet automaattisesti "Done"-sarakkeeseen projektin kanbanilla.
 
 ## 2. Mitä tekoäly teki huonosti?
 

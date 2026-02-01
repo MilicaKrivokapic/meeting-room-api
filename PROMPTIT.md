@@ -828,6 +828,32 @@ View all issues: https://github.com/MilicaKrivokapic/meeting-room-api/issues
 
 Which issue would you like me to tackle first?
 
+---
+
+### Issueiden kääntäminen suomeksi
+
+Myöhemmin pyysin tekoälyä kääntämään issuet suomeksi, jotta Kanban-taulu olisi yhtenäinen projektin muun dokumentaation kanssa.
+
+**Promptini:**
+
+> Could you change the tickets we have in the kanban board to Finnish quickly?
+
+**Tekoälyn vastaus:**
+
+I can update them via GitHub CLI! Let me check what issues exist and update them.
+
+```bash
+gh issue list --state all --json number,title
+gh issue edit 1 --title "fix: korjaa ISO 8601 -päivämäärävalidointi"
+gh issue edit 2 --title "feat: lisää Zod-validointi"
+gh issue edit 3 --title "feat: lisää virheenkäsittely-middleware"
+gh issue edit 4 --title "refactor: tyypitä virhekoodit"
+```
+
+Käänsin myös issuejen kuvaukset suomeksi `gh issue edit --body` -komennolla.
+
+---
+
 ## Korjausten toteutus
 
 *-korjaukset-*
